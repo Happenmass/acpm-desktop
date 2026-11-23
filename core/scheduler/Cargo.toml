@@ -1,0 +1,9 @@
+[package]
+name = "acpm-scheduler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+acpm-protocol = { path = "../protocol" }
+thiserror.workspace = true

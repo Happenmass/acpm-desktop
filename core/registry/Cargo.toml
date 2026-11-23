@@ -1,0 +1,11 @@
+[package]
+name = "acpm-registry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+acpm-pal = { path = "../pal" }
+acpm-protocol = { path = "../protocol" }
+serde_json.workspace = true
+thiserror.workspace = true

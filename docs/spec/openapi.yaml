@@ -1,0 +1,646 @@
+openapi: 3.1.0
+info:
+  title: acpm-desktop Local AI Runtime API
+  version: 0.1.0
+  description: |
+    Unified local AI model runtime API for macOS 15+ (MLX) and Windows (CUDA).
+    Supports 4B CoT post-correction LLM, Qwen3-ASR, Qwen3-TTS with reference voice cloning,
+    Pyannote VAD, ERes2NetV2 speaker diarization, model lifecycle management, and telemetry.
+servers:
+  - url: http://127.0.0.1:18790
+    description: Local daemon loopback endpoint (actual port discovered via runtime.json)
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    PriorityHeader:
+      name: X-AI-Priority
+      in: header
+      required: false
+      schema:
+        type: string
+        enum: [interactive, normal, batch]
+        default: normal
+    CallerHeader:
+      name: X-AI-Caller
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_.-]{1,64}$'
+    RequestIdHeader:
+      name: X-AI-Request-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id, stage, detail, elapsed_ms, retryable]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_REQUEST
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - AUDIO_VALIDATION_FAILED
+                - MODEL_NOT_INSTALLED
+                - UNSUPPORTED_PLATFORM
+                - INSUFFICIENT_MEMORY
+                - SCHEDULER_BUSY
+                - QUEUE_TIMEOUT
+                - WORKER_CRASHED
+                - INFERENCE_FAILED
+                - CANCELLED
+                - NOT_IMPLEMENTED
+            message:
+              type: string
+            request_id:
+              type: string
+            stage:
+              type: string
+            detail:
+              type: string
+            native_code:
+              type: [string, "null"]
+            elapsed_ms:
+              type: integer
+              format: int64
+            retryable:
+              type: boolean
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+        reasoning_content:
+          type: [string, "null"]
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+          example: yanmo-correct-4b-cot
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        stream:
+          type: boolean
+          default: false
+        temperature:
+          type: number
+          default: 0.0
+        max_tokens:
+          type: integer
+          default: 512
+        separate_reasoning:
+          type: boolean
+          default: true
+        prompt_cache_key:
+          type: [string, "null"]
+    TimingMetrics:
+      type: object
+      properties:
+        queue_ms:
+          type: number
+        model_load_ms:
+          type: [number, "null"]
+        prefill_ms:
+          type: [number, "null"]
+        decode_ms:
+          type: number
+        kv_cache_hit:
+          type: [boolean, "null"]
+        voice_cache_hit:
+          type: [boolean, "null"]
+    ChatCompletionResponse:
+      type: object
+      required: [id, object, created, model, choices]
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          const: chat.completion
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            required: [index, message, finish_reason]
+            properties:
+              index:
+                type: integer
+              message:
+                $ref: '#/components/schemas/ChatMessage'
+              finish_reason:
+                type: string
+        usage:
+          type: object
+          properties:
+            prompt_tokens: { type: integer }
+            completion_tokens: { type: integer }
+            total_tokens: { type: integer }
+        x_acpm_timing:
+          $ref: '#/components/schemas/TimingMetrics'
+    TranscriptionRequestJson:
+      type: object
+      required: [model, file_path]
+      properties:
+        model:
+          type: string
+          example: qwen3-asr-0.6b
+        file_path:
+          type: string
+        language:
+          type: string
+          default: auto
+        vad_filter:
+          type: boolean
+          default: true
+        timestamps:
+          type: boolean
+          default: true
+        prompt:
+          type: [string, "null"]
+    TranscriptionResponse:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        language:
+          type: [string, "null"]
+        duration_ms:
+          type: integer
+        segments:
+          type: array
+          items:
+            type: object
+            required: [start_ms, end_ms, text]
+            properties:
+              start_ms: { type: integer }
+              end_ms: { type: integer }
+              text: { type: string }
+        x_acpm_timing:
+          $ref: '#/components/schemas/TimingMetrics'
+    SpeechRequest:
+      type: object
+      required: [model, input]
+      properties:
+        model:
+          type: string
+          example: qwen3-tts-1.7b
+        input:
+          type: string
+        voice:
+          type: [string, "null"]
+        instruct:
+          type: [string, "null"]
+        reference_audio:
+          type: [string, "null"]
+        reference_text:
+          type: [string, "null"]
+        x_vector_only_mode:
+          type: boolean
+          default: false
+        speed:
+          type: number
+          default: 1.0
+        response_format:
+          type: string
+          enum: [wav, pcm]
+          default: wav
+        output_path:
+          type: [string, "null"]
+    SpeechFileResponse:
+      type: object
+      required: [output_path, bytes, sample_rate, duration_ms]
+      properties:
+        output_path: { type: string }
+        bytes: { type: integer }
+        sample_rate: { type: integer }
+        duration_ms: { type: integer }
+        voice_cache_hit: { type: boolean }
+        x_acpm_timing:
+          $ref: '#/components/schemas/TimingMetrics'
+    VoiceProfile:
+      type: object
+      required: [voice_id, name, duration_ms, sha256, created_at]
+      properties:
+        voice_id: { type: string }
+        name: { type: string }
+        reference_text: { type: [string, "null"] }
+        language: { type: [string, "null"] }
+        duration_ms: { type: integer }
+        sha256: { type: string }
+        created_at: { type: string, format: date-time }
+    VadResponse:
+      type: object
+      required: [segments, duration_ms]
+      properties:
+        segments:
+          type: array
+          items:
+            type: object
+            required: [start_ms, end_ms]
+            properties:
+              start_ms: { type: integer }
+              end_ms: { type: integer }
+        duration_ms: { type: integer }
+        x_acpm_timing:
+          $ref: '#/components/schemas/TimingMetrics'
+    DiarizationResponse:
+      type: object
+      required: [turns, speaker_count]
+      properties:
+        turns:
+          type: array
+          items:
+            type: object
+            required: [start_ms, end_ms, speaker]
+            properties:
+              start_ms: { type: integer }
+              end_ms: { type: integer }
+              speaker: { type: integer }
+        speaker_count: { type: integer }
+        warning: { type: [string, "null"] }
+        x_acpm_timing:
+          $ref: '#/components/schemas/TimingMetrics'
+    ResourceVector:
+      type: object
+      properties:
+        unified_mb: { type: integer }
+        system_ram_mb: { type: integer }
+        gpu_vram_mb:
+          type: object
+          additionalProperties: { type: integer }
+    ModelStatusInfo:
+      type: object
+      required: [id, capability, display_name, installed, state, pin_policy, idle_timeout_sec, memory]
+      properties:
+        id: { type: string }
+        capability:
+          type: string
+          enum: [llm, asr, tts, vad, diarization]
+        display_name: { type: string }
+        selected_variant: { type: [string, "null"] }
+        installed: { type: boolean }
+        state:
+          type: string
+          enum: [STOPPED, STARTING, LOADING, WARM, RUNNING, UNLOADING, FAILED]
+        pin_policy:
+          type: string
+          enum: [auto, pinned, ephemeral]
+        idle_timeout_sec: { type: integer }
+        memory:
+          $ref: '#/components/schemas/ResourceVector'
+    SystemStatusResponse:
+      type: object
+      required: [platform, pid, budget, used, memory_pressure, thermal_state, loaded_models]
+      properties:
+        platform: { type: string }
+        pid: { type: integer }
+        budget:
+          $ref: '#/components/schemas/ResourceVector'
+        used:
+          $ref: '#/components/schemas/ResourceVector'
+        memory_pressure:
+          type: string
+          enum: [normal, warn, critical]
+        thermal_state:
+          type: string
+          enum: [nominal, fair, serious, critical]
+        loaded_models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelStatusInfo'
+        active_requests: { type: integer }
+        queued_requests: { type: integer }
+        caller_counts:
+          type: object
+          additionalProperties: { type: integer }
+
+paths:
+  /healthz:
+    get:
+      summary: Unauthenticated liveness probe
+      security: []
+      responses:
+        "200":
+          description: Daemon alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  version: { type: string }
+                  platform: { type: string }
+  /v1/chat/completions:
+    post:
+      summary: Chat completions (4B CoT post-correction LLM)
+      parameters:
+        - $ref: '#/components/parameters/PriorityHeader'
+        - $ref: '#/components/parameters/CallerHeader'
+        - $ref: '#/components/parameters/RequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        "200":
+          description: Completion response or SSE stream
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+            text/event-stream:
+              schema:
+                type: string
+        "4XX":
+          description: Client or model error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+  /v1/audio/transcriptions:
+    post:
+      summary: Speech transcription (Qwen3-ASR)
+      parameters:
+        - $ref: '#/components/parameters/PriorityHeader'
+        - $ref: '#/components/parameters/CallerHeader'
+        - $ref: '#/components/parameters/RequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscriptionRequestJson'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, model]
+              properties:
+                file: { type: string, format: binary }
+                model: { type: string }
+                language: { type: string }
+                prompt: { type: string }
+      responses:
+        "200":
+          description: Transcription result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionResponse'
+  /v1/audio/speech:
+    post:
+      summary: Speech synthesis and zero-shot voice cloning (Qwen3-TTS)
+      parameters:
+        - $ref: '#/components/parameters/PriorityHeader'
+        - $ref: '#/components/parameters/CallerHeader'
+        - $ref: '#/components/parameters/RequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeechRequest'
+      responses:
+        "200":
+          description: WAV stream or written file metadata
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeechFileResponse'
+  /v1/audio/voices:
+    get:
+      summary: List registered reference voices
+      responses:
+        "200":
+          description: Voice list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  voices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VoiceProfile'
+    post:
+      summary: Register a named reference voice for cloning
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, reference_audio]
+              properties:
+                name: { type: string }
+                reference_audio: { type: string }
+                reference_text: { type: [string, "null"] }
+                language: { type: [string, "null"] }
+      responses:
+        "201":
+          description: Registered voice
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceProfile'
+  /v1/audio/voices/{voice_id}:
+    delete:
+      summary: Delete a registered reference voice
+      parameters:
+        - name: voice_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Deleted
+  /v1/audio/vad:
+    post:
+      summary: Voice activity detection (Pyannote 3.0)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                model: { type: string, default: speech-vad-pyannote }
+                file_path: { type: string }
+                min_speech_ms: { type: integer }
+                min_silence_ms: { type: integer }
+      responses:
+        "200":
+          description: Speech segments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VadResponse'
+  /v1/audio/diarization:
+    post:
+      summary: Speaker diarization (Pyannote + ERes2NetV2)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                model: { type: string, default: speech-speaker-eres2net }
+                file_path: { type: string }
+                speaker_count: { type: [integer, "null"], minimum: 1, maximum: 32 }
+      responses:
+        "200":
+          description: Speaker turns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiarizationResponse'
+  /v1/models:
+    get:
+      summary: List managed logical models and runtime states
+      responses:
+        "200":
+          description: Managed models
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelStatusInfo'
+  /v1/models/{model_id}/load:
+    post:
+      summary: Load and warm up a model
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Model warm or loading
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusInfo'
+  /v1/models/{model_id}/unload:
+    post:
+      summary: Unload a model and terminate its worker process
+      parameters:
+        - name: model_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Model stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelStatusInfo'
+  /v1/models/prewarm:
+    post:
+      summary: Prewarm a set of models and prompt cache keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [models]
+              properties:
+                models:
+                  type: array
+                  items: { type: string }
+                prompt_cache_keys:
+                  type: array
+                  items: { type: string }
+      responses:
+        "202":
+          description: Prewarm scheduled
+  /v1/system/status:
+    get:
+      summary: Current runtime memory, pressure, thermal, and worker snapshot
+      responses:
+        "200":
+          description: Runtime status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatusResponse'
+  /v1/system/events:
+    get:
+      summary: Server-Sent Events stream for UI console
+      responses:
+        "200":
+          description: Event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+  /v1/system/failures:
+    get:
+      summary: Last 20 redacted inference failures
+      responses:
+        "200":
+          description: Redacted failure history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  failures:
+                    type: array
+                    items: { type: object }
+  /v1/system/unload-all:
+    post:
+      summary: Unload all idle/unpinned workers immediately
+      responses:
+        "200":
+          description: Unloaded count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unloaded_models:
+                    type: array
+                    items: { type: string }

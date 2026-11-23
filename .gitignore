@@ -1,0 +1,35 @@
+# Rust
+target/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcodeproj
+*.xcworkspace
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# Model weights & audio artifacts
+*.safetensors
+*.gguf
+*.onnx
+*.bin
+*.wav
+*.mp3
+*.m4a
+
+# Local runtime state & databases
+runtime.json
+*.sock
+*.db
+*.db-wal
+*.db-shm

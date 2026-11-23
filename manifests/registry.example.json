@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "id": "yanmo-correct-4b-cot",
+      "capability": "llm",
+      "display_name": "Yanmo 4B CoT 后纠错",
+      "description": "针对语音听写后纠错优化 CoT 的本地 4B 语言模型，支持 System Prompt 前缀 KV 缓存与 <think> 拆分。",
+      "features": {
+        "supports_cot": true,
+        "supports_prompt_cache": true,
+        "supports_voice_clone": false
+      },
+      "lifecycle": {
+        "default_priority": "interactive",
+        "idle_timeout_sec": 1200,
+        "pin_policy": "auto",
+        "kv_cache_slots": 4,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-4bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "4bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 2950 },
+          "disk_mb": 2480,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-4bit/config.json"
+            },
+            {
+              "path": "model.safetensors",
+              "size": 2598400000,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-4bit/model.safetensors"
+            }
+          ]
+        },
+        {
+          "variant_id": "darwin-arm64-mlx-8bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "8bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 4900 },
+          "disk_mb": 4520,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-8bit/config.json"
+            },
+            {
+              "path": "model.safetensors",
+              "size": 4739500000,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-8bit/model.safetensors"
+            }
+          ]
+        },
+        {
+          "variant_id": "windows-x64-cuda-q4_k_m",
+          "platform": "windows-x64",
+          "accelerator": "cuda",
+          "quant": "q4_k_m",
+          "engine": "cuda-llamacpp",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "system_ram_mb": 650, "gpu_vram_mb": { "0": 3100 } },
+          "disk_mb": 2650,
+          "files": [
+            {
+              "path": "yanmo-correct-4b-cot-q4_k_m.gguf",
+              "size": 2778726400,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/yanmo-correct-4b-cot/gguf/yanmo-correct-4b-cot-q4_k_m.gguf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen3-asr-0.6b",
+      "capability": "asr",
+      "display_name": "Qwen3-ASR 0.6B",
+      "description": "轻量多语种语音识别模型，适合 16GB 机型与 4B CoT 后纠错协同热驻留。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": false,
+        "sample_rate_hz": 16000
+      },
+      "lifecycle": {
+        "default_priority": "interactive",
+        "idle_timeout_sec": 1200,
+        "pin_policy": "auto",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-4bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "4bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 950 },
+          "disk_mb": 620,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-asr-0.6b/mlx-4bit/config.json"
+            }
+          ]
+        },
+        {
+          "variant_id": "windows-x64-cuda-fp16",
+          "platform": "windows-x64",
+          "accelerator": "cuda",
+          "quant": "fp16",
+          "engine": "cuda-qwen-asr",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "system_ram_mb": 420, "gpu_vram_mb": { "0": 1550 } },
+          "disk_mb": 1280,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-asr-0.6b/cuda-fp16/config.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen3-asr-1.7b",
+      "capability": "asr",
+      "display_name": "Qwen3-ASR 1.7B",
+      "description": "高精度多语种及方言语音识别模型，推荐 24GB+ Apple Silicon 或 12GB+ VRAM 设备使用。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": false,
+        "sample_rate_hz": 16000
+      },
+      "lifecycle": {
+        "default_priority": "interactive",
+        "idle_timeout_sec": 1200,
+        "pin_policy": "auto",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-8bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "8bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 2350 },
+          "disk_mb": 1980,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-asr-1.7b/mlx-8bit/config.json"
+            }
+          ]
+        },
+        {
+          "variant_id": "windows-x64-cuda-fp16",
+          "platform": "windows-x64",
+          "accelerator": "cuda",
+          "quant": "fp16",
+          "engine": "cuda-qwen-asr",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "system_ram_mb": 560, "gpu_vram_mb": { "0": 3750 } },
+          "disk_mb": 3500,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-asr-1.7b/cuda-fp16/config.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen3-tts-0.6b",
+      "capability": "tts",
+      "display_name": "Qwen3-TTS 0.6B",
+      "description": "轻量千问语音合成模型，支持参考音频音色克隆，批处理完快速退潮释放内存。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": true,
+        "sample_rate_hz": 24000
+      },
+      "lifecycle": {
+        "default_priority": "batch",
+        "idle_timeout_sec": 180,
+        "pin_policy": "ephemeral",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 8
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-8bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "8bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 1650 },
+          "disk_mb": 1150,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-tts-0.6b/mlx-8bit/config.json"
+            }
+          ]
+        },
+        {
+          "variant_id": "windows-x64-cuda-fp16",
+          "platform": "windows-x64",
+          "accelerator": "cuda",
+          "quant": "fp16",
+          "engine": "cuda-qwen-tts",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "system_ram_mb": 480, "gpu_vram_mb": { "0": 1950 } },
+          "disk_mb": 1450,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-tts-0.6b/cuda-fp16/config.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "qwen3-tts-1.7b",
+      "capability": "tts",
+      "display_name": "Qwen3-TTS 1.7B",
+      "description": "高质量千问语音合成模型，支持参考音频克隆、CustomVoice 与自然语言 VoiceDesign。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": true,
+        "sample_rate_hz": 24000
+      },
+      "lifecycle": {
+        "default_priority": "batch",
+        "idle_timeout_sec": 180,
+        "pin_policy": "ephemeral",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 8
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-8bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "8bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 3250 },
+          "disk_mb": 2650,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-tts-1.7b/mlx-8bit/config.json"
+            }
+          ]
+        },
+        {
+          "variant_id": "windows-x64-cuda-fp16",
+          "platform": "windows-x64",
+          "accelerator": "cuda",
+          "quant": "fp16",
+          "engine": "cuda-qwen-tts",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "system_ram_mb": 650, "gpu_vram_mb": { "0": 4100 } },
+          "disk_mb": 3600,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-tts-1.7b/cuda-fp16/config.json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "speech-vad-pyannote",
+      "capability": "vad",
+      "display_name": "Pyannote Segmentation 3.0 VAD",
+      "description": "跨平台 CPU 人声活动检测模型（sherpa-onnx），权重与 Android acpm 完全一致。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": false,
+        "sample_rate_hz": 16000
+      },
+      "lifecycle": {
+        "default_priority": "normal",
+        "idle_timeout_sec": 300,
+        "pin_policy": "auto",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "any-cpu-onnx",
+          "platform": "any",
+          "accelerator": "cpu",
+          "quant": "fp32",
+          "engine": "sherpa-onnx",
+          "compute_slot": { "type": "cpu" },
+          "footprint": { "unified_mb": 140, "system_ram_mb": 140 },
+          "disk_mb": 6,
+          "files": [
+            {
+              "path": "segmentation.onnx",
+              "size": 5992913,
+              "sha256": "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "speech-speaker-eres2net",
+      "capability": "diarization",
+      "display_name": "ERes2NetV2 Speaker Diarization",
+      "description": "跨平台说话人嵌入与聚类模型（sherpa-onnx），配合 Pyannote 实现多说话人分离，权重与 Android acpm 一致。",
+      "features": {
+        "supports_cot": false,
+        "supports_prompt_cache": false,
+        "supports_voice_clone": false,
+        "sample_rate_hz": 16000
+      },
+      "lifecycle": {
+        "default_priority": "batch",
+        "idle_timeout_sec": 300,
+        "pin_policy": "ephemeral",
+        "kv_cache_slots": 0,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "any-cpu-onnx",
+          "platform": "any",
+          "accelerator": "cpu",
+          "quant": "fp32",
+          "engine": "sherpa-onnx",
+          "compute_slot": { "type": "cpu" },
+          "footprint": { "unified_mb": 280, "system_ram_mb": 280 },
+          "disk_mb": 74,
+          "files": [
+            {
+              "path": "segmentation.onnx",
+              "size": 5992913,
+              "sha256": "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2"
+            },
+            {
+              "path": "embedding.onnx",
+              "size": 71441526,
+              "sha256": "bf1a75b9930474cf3389ef415e6e5d38ca96fea4a3a00f7e301d080a58ee2239",
+              "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_eres2netv2_sv_zh-cn_16k-common.onnx"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
