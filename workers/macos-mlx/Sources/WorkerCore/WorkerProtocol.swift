@@ -4,6 +4,8 @@ public enum WorkerMode: String, Codable, Sendable, CaseIterable {
     case llm
     case asr
     case tts
+    case benchmark
+    case serveAll = "serve-all"
 }
 
 public enum WorkerState: String, Codable, Sendable {
@@ -117,20 +119,51 @@ public struct WorkerCLIOptions: Sendable, Equatable {
     public let modelId: String
     public let modelDir: String?
     public let ipcPath: String?
+    public let authTokenEnv: String
+    public let explicitToken: String?
+    public let listenAddress: String?
+    public let mdnsHost: String?
+    public let mdnsServiceName: String
     public let memoryLimitMB: UInt64
     public let threads: Int
     public let probe: Bool
     public let showHelp: Bool
+
+    // Bundle / benchmark options
+    public let llmDir: String?
+    public let asrDir: String?
+    public let ttsDir: String?
+    public let corpusPath: String?
+    public let audioPaths: [String]
+    public let refAudioPath: String?
+    public let refText: String?
+    public let outJSONPath: String?
+    public let artifactsDir: String?
 
     public static func parse(arguments: [String]) throws -> WorkerCLIOptions {
         var mode: WorkerMode = .llm
         var modelId = ""
         var modelDir: String?
         var ipcPath: String?
+        var authTokenEnv = "ACPM_WORKER_TOKEN"
+        var explicitToken: String?
+        var listenAddress: String?
+        var mdnsHost: String?
+        var mdnsServiceName = "acpm-desktop"
         var memoryLimitMB: UInt64 = 4096
         var threads = 4
         var probe = false
         var showHelp = false
+
+        var llmDir: String?
+        var asrDir: String?
+        var ttsDir: String?
+        var corpusPath: String?
+        var audioPaths: [String] = []
+        var refAudioPath: String?
+        var refText: String?
+        var outJSONPath: String?
+        var artifactsDir: String?
 
         var idx = 1
         while idx < arguments.count {
@@ -158,6 +191,26 @@ public struct WorkerCLIOptions: Sendable, Equatable {
                 idx += 1
                 guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--ipc-path") }
                 ipcPath = arguments[idx]
+            case "--auth-token-env":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--auth-token-env") }
+                authTokenEnv = arguments[idx]
+            case "--token":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--token") }
+                explicitToken = arguments[idx]
+            case "--listen":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--listen") }
+                listenAddress = arguments[idx]
+            case "--mdns-host":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--mdns-host") }
+                mdnsHost = arguments[idx]
+            case "--mdns-service-name":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--mdns-service-name") }
+                mdnsServiceName = arguments[idx]
             case "--memory-limit-mb":
                 idx += 1
                 guard idx < arguments.count, let val = UInt64(arguments[idx]) else {
@@ -170,8 +223,42 @@ public struct WorkerCLIOptions: Sendable, Equatable {
                     throw WorkerConfigError.invalidArgument("--threads")
                 }
                 threads = val
-            case "--auth-token-env":
+            case "--llm-dir":
                 idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--llm-dir") }
+                llmDir = arguments[idx]
+            case "--asr-dir":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--asr-dir") }
+                asrDir = arguments[idx]
+            case "--tts-dir":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--tts-dir") }
+                ttsDir = arguments[idx]
+            case "--corpus":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--corpus") }
+                corpusPath = arguments[idx]
+            case "--audio":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--audio") }
+                audioPaths.append(arguments[idx])
+            case "--ref-audio":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--ref-audio") }
+                refAudioPath = arguments[idx]
+            case "--ref-text":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--ref-text") }
+                refText = arguments[idx]
+            case "--out-json":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--out-json") }
+                outJSONPath = arguments[idx]
+            case "--artifacts-dir":
+                idx += 1
+                guard idx < arguments.count else { throw WorkerConfigError.invalidArgument("--artifacts-dir") }
+                artifactsDir = arguments[idx]
             default:
                 throw WorkerConfigError.unknownArgument(arg)
             }
@@ -179,7 +266,12 @@ public struct WorkerCLIOptions: Sendable, Equatable {
         }
 
         if !showHelp && modelId.isEmpty {
-            throw WorkerConfigError.missingRequired("--model-id")
+            switch mode {
+            case .llm, .asr, .tts:
+                throw WorkerConfigError.missingRequired("--model-id")
+            case .benchmark, .serveAll:
+                modelId = "acpm-bundle"
+            }
         }
 
         return WorkerCLIOptions(
@@ -187,10 +279,24 @@ public struct WorkerCLIOptions: Sendable, Equatable {
             modelId: modelId,
             modelDir: modelDir,
             ipcPath: ipcPath,
+            authTokenEnv: authTokenEnv,
+            explicitToken: explicitToken,
+            listenAddress: listenAddress,
+            mdnsHost: mdnsHost,
+            mdnsServiceName: mdnsServiceName,
             memoryLimitMB: memoryLimitMB,
             threads: threads,
             probe: probe,
-            showHelp: showHelp
+            showHelp: showHelp,
+            llmDir: llmDir,
+            asrDir: asrDir,
+            ttsDir: ttsDir,
+            corpusPath: corpusPath,
+            audioPaths: audioPaths,
+            refAudioPath: refAudioPath,
+            refText: refText,
+            outJSONPath: outJSONPath,
+            artifactsDir: artifactsDir
         )
     }
 }

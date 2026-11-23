@@ -33,3 +33,11 @@ runtime.json
 *.db
 *.db-wal
 *.db-shm
+
+# Downloaded toolchains, metallibs & Phase 0 benchmark artifacts
+.cache/
+benchmarks/phase0/artifacts/
+*.metallib
+
+# Release packaging outputs (published via GitHub Releases, not tracked in Git)
+dist/

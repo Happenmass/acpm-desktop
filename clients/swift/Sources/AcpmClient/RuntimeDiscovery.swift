@@ -10,6 +10,8 @@ public struct RuntimeDiscovery: Codable, Sendable, Equatable {
     public let token: String
     public let platform: String
     public let capabilities: [String]
+    public let mdnsHostname: String?
+    public let mdnsBaseUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -20,10 +22,16 @@ public struct RuntimeDiscovery: Codable, Sendable, Equatable {
         case token
         case platform
         case capabilities
+        case mdnsHostname = "mdns_hostname"
+        case mdnsBaseUrl = "mdns_base_url"
     }
 
     public var baseURL: URL? {
         URL(string: httpBaseUrl)
+    }
+
+    public var mdnsURL: URL? {
+        mdnsBaseUrl.flatMap(URL.init(string:))
     }
 
     public static func defaultDataDirectory() -> URL {

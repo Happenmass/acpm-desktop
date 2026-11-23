@@ -50,20 +50,50 @@
           "quant": "8bit",
           "engine": "mlx-swift",
           "compute_slot": { "type": "gpu", "device_id": 0 },
-          "footprint": { "unified_mb": 4900 },
-          "disk_mb": 4520,
+          "footprint": { "unified_mb": 5265 },
+          "disk_mb": 4282,
           "files": [
             {
               "path": "config.json",
-              "size": 1024,
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-8bit/config.json"
+              "size": 2425,
+              "sha256": "f6c4b2159afd2696d52c5983ace7552abb99092f035fbfee6ef927029f344753",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/config.json"
+            },
+            {
+              "path": "generation_config.json",
+              "size": 116,
+              "sha256": "62153eb6c69f2e1f426beaa8002b7186437e949c7588167085df14e10e9c0a73",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/generation_config.json"
+            },
+            {
+              "path": "chat_template.jinja",
+              "size": 7756,
+              "sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/chat_template.jinja"
+            },
+            {
+              "path": "tokenizer.json",
+              "size": 19989325,
+              "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/tokenizer.json"
+            },
+            {
+              "path": "tokenizer_config.json",
+              "size": 1160,
+              "sha256": "386ba246ba3dfa4d3a21d8bc8712eba38de558e5ac94c2c90436d8f94d519d5e",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/tokenizer_config.json"
+            },
+            {
+              "path": "model.safetensors.index.json",
+              "size": 81008,
+              "sha256": "b29176b4a66faeca18c57eb2ddca251134073ac3af87b69e84512a81971a18b3",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/model.safetensors.index.json"
             },
             {
               "path": "model.safetensors",
-              "size": 4739500000,
-              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-              "url": "https://models.example.invalid/yanmo-correct-4b-cot/mlx-8bit/model.safetensors"
+              "size": 4469632533,
+              "sha256": "a1c8750ea207147832dcf40c2be4e078436fe49403f4fbbd9e7fbd28413b0225",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-4b-cot-mlx-8bit/resolve/main/model.safetensors"
             }
           ]
         },
@@ -82,6 +112,86 @@
               "size": 2778726400,
               "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
               "url": "https://models.example.invalid/yanmo-correct-4b-cot/gguf/yanmo-correct-4b-cot-q4_k_m.gguf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yanmo-correct-9b-cot",
+      "capability": "llm",
+      "display_name": "Yanmo 9B CoT 后纠错",
+      "description": "高精度蒸馏 9B 语音听写后纠错模型，推荐 24GB+ 统一内存设备使用，支持 <think> 拆分与前缀 KV 缓存。",
+      "features": {
+        "supports_cot": true,
+        "supports_prompt_cache": true,
+        "supports_voice_clone": false
+      },
+      "lifecycle": {
+        "default_priority": "interactive",
+        "idle_timeout_sec": 1200,
+        "pin_policy": "auto",
+        "kv_cache_slots": 4,
+        "voice_cache_slots": 0
+      },
+      "variants": [
+        {
+          "variant_id": "darwin-arm64-mlx-8bit",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "8bit",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 9500 },
+          "disk_mb": 9100,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 2461,
+              "sha256": "4fc1f38d6f9d02f7db0632a9ff886f9f5cd504d5b2147c7bc8beecb5484e4b78",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/config.json"
+            },
+            {
+              "path": "generation_config.json",
+              "size": 164,
+              "sha256": "afa48c3c3f7a3e873e82b5e77af288143c5b400d5df39ae4405e40e8e92d9fcb",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/generation_config.json"
+            },
+            {
+              "path": "chat_template.jinja",
+              "size": 7756,
+              "sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/chat_template.jinja"
+            },
+            {
+              "path": "tokenizer.json",
+              "size": 19989325,
+              "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/tokenizer.json"
+            },
+            {
+              "path": "tokenizer_config.json",
+              "size": 1160,
+              "sha256": "386ba246ba3dfa4d3a21d8bc8712eba38de558e5ac94c2c90436d8f94d519d5e",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/tokenizer_config.json"
+            },
+            {
+              "path": "model.safetensors.index.json",
+              "size": 95099,
+              "sha256": "d11d30241db3acd6c2e2b5eea59b2ca0f2ca63776aa91f025699e4307a4d0370",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/model.safetensors.index.json"
+            },
+            {
+              "path": "model-00001-of-00002.safetensors",
+              "size": 5346606498,
+              "sha256": "beebdc05f326e8a906eeca5da5511b6dfb18af3530247e0a20fc149e46f5a7ff",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/model-00001-of-00002.safetensors"
+            },
+            {
+              "path": "model-00002-of-00002.safetensors",
+              "size": 4167925581,
+              "sha256": "5211b127f80b74d66a64c7649f008379c70fed0ac686c2a3209817eeb0dbcd7b",
+              "url": "https://huggingface.co/Happenmasss/yanmo-correct-9b-cot-mlx-8bit/resolve/main/model-00002-of-00002.safetensors"
             }
           ]
         }
@@ -170,7 +280,7 @@
           "quant": "8bit",
           "engine": "mlx-swift",
           "compute_slot": { "type": "gpu", "device_id": 0 },
-          "footprint": { "unified_mb": 2350 },
+          "footprint": { "unified_mb": 2673 },
           "disk_mb": 1980,
           "files": [
             {
@@ -292,6 +402,24 @@
               "size": 1024,
               "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
               "url": "https://models.example.invalid/qwen3-tts-1.7b/mlx-8bit/config.json"
+            }
+          ]
+        },
+        {
+          "variant_id": "darwin-arm64-mlx-bf16",
+          "platform": "darwin-arm64",
+          "accelerator": "mlx",
+          "quant": "bf16",
+          "engine": "mlx-swift",
+          "compute_slot": { "type": "gpu", "device_id": 0 },
+          "footprint": { "unified_mb": 12509 },
+          "disk_mb": 4334,
+          "files": [
+            {
+              "path": "config.json",
+              "size": 1024,
+              "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+              "url": "https://models.example.invalid/qwen3-tts-1.7b/mlx-bf16/config.json"
             }
           ]
         },

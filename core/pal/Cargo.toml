@@ -8,3 +8,6 @@ license.workspace = true
 acpm-protocol = { path = "../protocol" }
 serde.workspace = true
 thiserror.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc.workspace = true

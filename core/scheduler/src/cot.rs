@@ -26,13 +26,22 @@ pub struct CotStreamSplitter {
 
 impl CotStreamSplitter {
     pub fn new(enabled: bool) -> Self {
+        Self::new_with_initial_think(enabled, false)
+    }
+
+    /// Creates a splitter where `starts_in_think = true` handles chat templates
+    /// (such as Qwen3.5) that prefill `<think>\n` inside the prompt before generation.
+    pub fn new_with_initial_think(enabled: bool, starts_in_think: bool) -> Self {
+        let phase = if !enabled {
+            SplitPhase::InContent
+        } else if starts_in_think {
+            SplitPhase::InThink
+        } else {
+            SplitPhase::DetectingStart
+        };
         Self {
             enabled,
-            phase: if enabled {
-                SplitPhase::DetectingStart
-            } else {
-                SplitPhase::InContent
-            },
+            phase,
             buffer: String::new(),
         }
     }
@@ -220,5 +229,28 @@ mod tests {
         let (r, c) = collect_all(vec!["<think>partial reasoning</thi"], true);
         assert_eq!(r, "partial reasoning</thi");
         assert!(c.is_empty());
+    }
+
+    #[test]
+    fn splits_prefilled_think_block_without_opening_tag() {
+        let mut splitter = CotStreamSplitter::new_with_initial_think(true, true);
+        let mut reasoning = String::new();
+        let mut content = String::new();
+        for piece in ["北静应为北京\n", "</th", "ink>\n\n", "明天去北京出差。"] {
+            for item in splitter.push(piece) {
+                match item {
+                    CotChunk::Reasoning(r) => reasoning.push_str(&r),
+                    CotChunk::Content(c) => content.push_str(&c),
+                }
+            }
+        }
+        for item in splitter.finish() {
+            match item {
+                CotChunk::Reasoning(r) => reasoning.push_str(&r),
+                CotChunk::Content(c) => content.push_str(&c),
+            }
+        }
+        assert_eq!(reasoning, "北静应为北京\n");
+        assert_eq!(content, "明天去北京出差。");
     }
 }

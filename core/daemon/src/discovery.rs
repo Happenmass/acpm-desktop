@@ -14,6 +14,10 @@ pub struct RuntimeDiscovery {
     pub token: String,
     pub platform: String,
     pub capabilities: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mdns_hostname: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mdns_base_url: Option<String>,
 }
 
 impl RuntimeDiscovery {
@@ -36,9 +40,21 @@ impl RuntimeDiscovery {
                 "asr".to_string(),
                 "tts".to_string(),
                 "vad".to_string(),
-                "diarization".to_string(),
             ],
+            mdns_hostname: None,
+            mdns_base_url: None,
         }
+    }
+
+    pub fn with_mdns(mut self, mdns_hostname: Option<String>, port: u16) -> Self {
+        if let Some(host) = mdns_hostname {
+            let trimmed = host.trim_end_matches('.').to_string();
+            if !trimmed.is_empty() {
+                self.mdns_base_url = Some(format!("http://{trimmed}:{port}"));
+                self.mdns_hostname = Some(trimmed);
+            }
+        }
+        self
     }
 }
 

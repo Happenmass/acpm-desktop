@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.3
 import PackageDescription
 
 let package = Package(
@@ -14,10 +14,10 @@ let package = Package(
         .executable(name: "acpm-worker-mlx", targets: ["AcpmWorkerMLX"]),
     ],
     dependencies: [
-        // Phase 0: uncomment and build with full Xcode 16+ so mlx.metallib is compiled.
-        // .package(url: "https://github.com/ml-explore/mlx-swift", from: "0.21.0"),
-        // .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "0.1.0"),
-        // .package(url: "https://github.com/Blaizzy/mlx-audio-swift", branch: "main"),
+        .package(url: "https://github.com/ml-explore/mlx-swift.git", exact: "0.33.0"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", exact: "3.33.0", traits: []),
+        .package(url: "https://github.com/Blaizzy/mlx-audio-swift.git", branch: "main"),
+        .package(url: "https://github.com/huggingface/swift-transformers.git", .upToNextMajor(from: "1.4.0")),
     ],
     targets: [
         .target(
@@ -25,15 +25,31 @@ let package = Package(
         ),
         .target(
             name: "EngineLLM",
-            dependencies: ["WorkerCore"]
+            dependencies: [
+                "WorkerCore",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "Tokenizers", package: "swift-transformers"),
+            ]
         ),
         .target(
             name: "EngineASR",
-            dependencies: ["WorkerCore"]
+            dependencies: [
+                "WorkerCore",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
+                .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
+            ]
         ),
         .target(
             name: "EngineTTS",
-            dependencies: ["WorkerCore"]
+            dependencies: [
+                "WorkerCore",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXAudioCore", package: "mlx-audio-swift"),
+                .product(name: "MLXAudioTTS", package: "mlx-audio-swift"),
+            ]
         ),
         .executableTarget(
             name: "AcpmWorkerMLX",
@@ -42,6 +58,7 @@ let package = Package(
                 "EngineLLM",
                 "EngineASR",
                 "EngineTTS",
+                .product(name: "MLX", package: "mlx-swift"),
             ]
         ),
         .testTarget(

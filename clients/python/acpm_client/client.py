@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ class RuntimeDiscovery:
     token: str
     platform: str
     capabilities: list[str]
+    mdns_hostname: str | None = None
+    mdns_base_url: str | None = None
 
 
 class AcpmError(RuntimeError):
@@ -89,6 +92,8 @@ def discover_runtime(
         token=str(raw["token"]),
         platform=str(raw["platform"]),
         capabilities=[str(x) for x in raw.get("capabilities", [])],
+        mdns_hostname=raw.get("mdns_hostname"),
+        mdns_base_url=str(raw["mdns_base_url"]).rstrip("/") if raw.get("mdns_base_url") else None,
     )
     if verify_alive and not _is_pid_alive(info.pid):
         raise ProcessLookupError(f"Stale runtime.json points to dead pid {info.pid}")
@@ -124,6 +129,26 @@ class AcpmClient:
         info = discover_runtime(data_dir=data_dir)
         return cls(info.http_base_url, info.token, caller=caller, timeout_sec=timeout_sec)
 
+    @classmethod
+    def from_mdns(
+        cls,
+        token: str,
+        *,
+        host: str = "acpm.local",
+        port: int = 18790,
+        caller: str = "python-client",
+        timeout_sec: float = 120.0,
+        opener: urllib.request.OpenerDirector | None = None,
+    ) -> AcpmClient:
+        normalized_host = host.strip().rstrip(".")
+        return cls(
+            f"http://{normalized_host}:{port}",
+            token,
+            caller=caller,
+            timeout_sec=timeout_sec,
+            opener=opener,
+        )
+
     def health(self) -> dict[str, Any]:
         return self._request_json("GET", "/healthz", authenticated=False)
 
@@ -147,6 +172,69 @@ class AcpmClient:
         if prompt_cache_keys is not None:
             body["prompt_cache_keys"] = prompt_cache_keys
         return self._request_json("POST", "/v1/models/prewarm", payload=body)
+
+    def system_config(self) -> dict[str, Any]:
+        return self._request_json("GET", "/v1/system/config")
+
+    def update_system_config(
+        self,
+        *,
+        budget_tier: str | None = None,
+        budget_override_mb: int | None = None,
+        clear_budget_override: bool = False,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"clear_budget_override": clear_budget_override}
+        if budget_tier is not None:
+            payload["budget_tier"] = budget_tier
+        if budget_override_mb is not None:
+            payload["budget_override_mb"] = budget_override_mb
+        return self._request_json("PATCH", "/v1/system/config", payload=payload)
+
+    def update_model_config(
+        self,
+        model_id: str,
+        *,
+        pin_policy: str | None = None,
+        idle_timeout_sec: int | None = None,
+        quant: str | None = None,
+        path: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if pin_policy is not None:
+            payload["pin_policy"] = pin_policy
+        if idle_timeout_sec is not None:
+            payload["idle_timeout_sec"] = idle_timeout_sec
+        if quant is not None:
+            payload["quant"] = quant
+        if path is not None:
+            payload["path"] = path
+        return self._request_json("PATCH", f"/v1/models/{model_id}/config", payload=payload)
+
+    def list_downloads(self) -> list[dict[str, Any]]:
+        return list(self._request_json("GET", "/v1/models/downloads").get("downloads", []))
+
+    def start_model_download(self, model_id: str, *, quant: str | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if quant is not None:
+            payload["quant"] = quant
+        return self._request_json("POST", f"/v1/models/{model_id}/download", payload=payload)
+
+    def get_model_download(self, model_id: str) -> dict[str, Any]:
+        return self._request_json("GET", f"/v1/models/{model_id}/download")
+
+    def cancel_model_download(self, model_id: str) -> dict[str, Any]:
+        return self._request_json("POST", f"/v1/models/{model_id}/download/cancel", payload={})
+
+    def delete_model(self, model_id: str, *, quant: str | None = None) -> None:
+        path = f"/v1/models/{model_id}"
+        if quant is not None:
+            path += f"?quant={urllib.parse.quote(quant)}"
+        self._request_raw("DELETE", path)
+
+    def unload_all(self, *, include_pinned: bool = False) -> dict[str, Any]:
+        return self._request_json(
+            "POST", "/v1/system/unload-all", payload={"include_pinned": include_pinned}
+        )
 
     def chat_completions(
         self,
@@ -238,19 +326,86 @@ class AcpmClient:
         *,
         reference_text: str | None = None,
         language: str | None = None,
+        notes: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {"name": name, "reference_audio": reference_audio}
         if reference_text is not None:
             payload["reference_text"] = reference_text
         if language is not None:
             payload["language"] = language
+        if notes is not None:
+            payload["notes"] = notes
         return self._request_json("POST", "/v1/audio/voices", payload=payload)
 
     def list_voices(self) -> list[dict[str, Any]]:
         return list(self._request_json("GET", "/v1/audio/voices").get("voices", []))
 
+    def get_voice(self, voice_id: str) -> dict[str, Any]:
+        return self._request_json("GET", f"/v1/audio/voices/{voice_id}")
+
+    def download_voice_sample(self, voice_id: str) -> bytes:
+        raw, _ = self._request_raw("GET", f"/v1/audio/voices/{voice_id}/sample")
+        return raw
+
     def delete_voice(self, voice_id: str) -> None:
         self._request_raw("DELETE", f"/v1/audio/voices/{voice_id}")
+
+    def create_speech_batch(
+        self,
+        output_dir: str,
+        items: list[dict[str, Any]],
+        *,
+        model: str = "qwen3-tts-1.7b",
+        voice: str | None = None,
+        instruct: str | None = None,
+        reference_audio: str | None = None,
+        reference_text: str | None = None,
+        x_vector_only_mode: bool = False,
+        speed: float | None = None,
+        priority: str = "batch",
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "model": model,
+            "output_dir": output_dir,
+            "items": items,
+            "x_vector_only_mode": x_vector_only_mode,
+        }
+        if voice is not None:
+            payload["voice"] = voice
+        if instruct is not None:
+            payload["instruct"] = instruct
+        if reference_audio is not None:
+            payload["reference_audio"] = reference_audio
+        if reference_text is not None:
+            payload["reference_text"] = reference_text
+        if speed is not None:
+            payload["speed"] = speed
+        return self._request_json(
+            "POST", "/v1/audio/speech/batches", payload=payload, priority=priority
+        )
+
+    def list_speech_batches(self) -> list[dict[str, Any]]:
+        return list(
+            self._request_json("GET", "/v1/audio/speech/batches").get("batches", [])
+        )
+
+    def get_speech_batch(self, batch_id: str) -> dict[str, Any]:
+        return self._request_json("GET", f"/v1/audio/speech/batches/{batch_id}")
+
+    def pause_speech_batch(self, batch_id: str) -> dict[str, Any]:
+        return self._request_json(
+            "POST", f"/v1/audio/speech/batches/{batch_id}/pause", payload={}
+        )
+
+    def resume_speech_batch(self, batch_id: str) -> dict[str, Any]:
+        return self._request_json(
+            "POST", f"/v1/audio/speech/batches/{batch_id}/resume", payload={}
+        )
+
+    def cancel_speech_batch(self, batch_id: str) -> dict[str, Any]:
+        return self._request_json(
+            "POST", f"/v1/audio/speech/batches/{batch_id}/cancel", payload={}
+        )
 
     def vad(
         self,

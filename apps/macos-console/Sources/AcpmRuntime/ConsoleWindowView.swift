@@ -1,147 +1,217 @@
 import AcpmClient
+import AcpmRuntimeCore
 import SwiftUI
 
 struct ConsoleWindowView: View {
     @Bindable var viewModel: RuntimeViewModel
+    let onOpenSettings: () -> Void
 
     var body: some View {
         NavigationSplitView {
-            List(ConsoleTab.allCases, selection: Binding<ConsoleTab?>(
-                get: { viewModel.selectedTab },
-                set: { if let tab = $0 { viewModel.selectedTab = tab } }
-            )) { tab in
-                Text(tab.rawValue)
+            VStack(spacing: 0) {
+                sidebarBrandHeader
+                    .padding(.horizontal, AcpmTheme.Spacing.m)
+                    .padding(.vertical, AcpmTheme.Spacing.m)
+
+                List(
+                    ConsoleTab.allCases,
+                    selection: Binding<ConsoleTab?>(
+                        get: { viewModel.selectedTab },
+                        set: { if let tab = $0 { viewModel.selectedTab = tab } }
+                    )
+                ) { tab in
+                    HStack {
+                        Label(tab.rawValue, systemImage: tab.systemImage)
+                        Spacer()
+                        if let badge = attentionBadgeCount(for: tab), badge > 0 {
+                            Text(verbatim: "\(badge)")
+                                .font(.caption2.monospacedDigit().weight(.bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(attentionBadgeColor(for: tab).opacity(0.18), in: Capsule())
+                                .foregroundStyle(attentionBadgeColor(for: tab))
+                        }
+                    }
                     .tag(tab)
+                }
+                .listStyle(.sidebar)
+
+                Divider()
+                sidebarConnectionFooter
+                    .padding(AcpmTheme.Spacing.m)
             }
-            .navigationTitle("AI SDK")
+            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 245)
         } detail: {
-            Group {
-                switch viewModel.selectedTab {
-                case .overview:
-                    overviewTab
-                case .models:
-                    modelsTab
-                case .jobs:
-                    jobsTab
-                case .voicesAndSettings:
-                    voicesAndSettingsTab
+            ZStack(alignment: .bottom) {
+                detailContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(nsColor: .windowBackgroundColor))
+
+                if let toast = viewModel.toast {
+                    ToastOverlay(toast: toast) {
+                        viewModel.dismissToast()
+                    }
+                    .padding(.bottom, AcpmTheme.Spacing.l)
+                    .padding(.horizontal, AcpmTheme.Spacing.l)
                 }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .animation(.snappy(duration: 0.28), value: viewModel.toast)
+            .navigationTitle(viewModel.selectedTab.rawValue)
+            .navigationSubtitle(liveSubtitle)
         }
-        .onAppear { viewModel.startPolling() }
-        .onDisappear { viewModel.stopPolling() }
-    }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                StatusPill(
+                    label: viewModel.isStartingDaemon
+                        ? "启动中"
+                        : (viewModel.connected ? "运行中" : "离线"),
+                    color: viewModel.connected ? .green : (viewModel.isStartingDaemon ? .orange : .red),
+                    pulsing: viewModel.isStartingDaemon
+                )
 
-    private var overviewTab: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("运行时概览")
-                    .font(.title2.bold())
-                Spacer()
-                Button("刷新") {
-                    Task { await viewModel.refresh() }
-                }
-            }
-
-            if let status = viewModel.status {
-                Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
-                    GridRow {
-                        statCard(title: "平台", value: status.platform)
-                        statCard(title: "预算 / 已用", value: "\(status.used.totalMB) / \(status.budget.totalMB) MB")
-                        statCard(title: "内存压力", value: status.memoryPressure)
-                        statCard(title: "热状态", value: status.thermalState)
-                    }
-                }
-            } else {
-                Text(viewModel.lastErrorMessage ?? "等待连接到 acpmd...")
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            Text("最近推理失败记录（已脱敏，不含音频与文本）")
-                .font(.headline)
-            if viewModel.recentFailures.isEmpty {
-                Text("暂无失败记录")
-                    .foregroundStyle(.secondary)
-            } else {
-                List(viewModel.recentFailures) { failure in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(failure.operation) · \(failure.code.rawValue)")
-                            .font(.subheadline.bold())
-                        Text("req=\(failure.requestId) stage=\(failure.stage) detail=\(failure.detail) (\(failure.elapsedMs) ms)")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    private var modelsTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("逻辑模型管理")
-                .font(.title2.bold())
-            List(viewModel.models) { model in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(model.displayName)
-                            .font(.headline)
-                        Text("\(model.id) · 能力: \(model.capability) · 状态: \(model.state) · 占用: \(model.memory.totalMB) MB")
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if model.state == "STOPPED" {
-                        Button("预热") {
-                            Task { await viewModel.loadModel(model.id) }
+                Button {
+                    Task { await viewModel.unloadAll() }
+                } label: {
+                    if viewModel.isUnloadingAll {
+                        HStack(spacing: 5) {
+                            ProgressView().controlSize(.small)
+                            Text("释放中…")
                         }
                     } else {
-                        Button("卸载") {
-                            Task { await viewModel.unloadModel(model.id) }
-                        }
+                        Label("释放内存", systemImage: "memorychip")
                     }
                 }
-                .padding(.vertical, 4)
+                .labelStyle(.titleAndIcon)
+                .disabled(!viewModel.connected || viewModel.isUnloadingAll)
+                .help("释放所有未常驻的空闲模型内存 (⇧⌘K)")
+
+                Button {
+                    onOpenSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help("打开设置 (⌘,)")
+            }
+        }
+        .sheet(isPresented: $viewModel.showOnboardingSheet) {
+            OnboardingSheetView(viewModel: viewModel)
+        }
+        .onAppear {
+            viewModel.startMonitoring()
+        }
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch viewModel.selectedTab {
+        case .overview:
+            ScrollView {
+                OverviewTabView(viewModel: viewModel)
+                    .padding(AcpmTheme.Spacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        case .models:
+            ModelsTabView(viewModel: viewModel)
+        case .playground:
+            ScrollView {
+                PlaygroundTabView(viewModel: viewModel)
+                    .padding(AcpmTheme.Spacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        case .jobs:
+            ScrollView {
+                JobsTabView(viewModel: viewModel)
+                    .padding(AcpmTheme.Spacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        case .voices:
+            ScrollView {
+                VoicesTabView(viewModel: viewModel)
+                    .padding(AcpmTheme.Spacing.xl)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
     }
 
-    private var jobsTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("活跃任务与批量队列")
-                .font(.title2.bold())
+    private var liveSubtitle: String {
+        switch viewModel.selectedTab {
+        case .overview:
+            if let st = viewModel.status {
+                let usedGB = String(format: "%.1f", Double(st.used.totalMB) / 1024.0)
+                let budgetGB = String(format: "%.0f", Double(max(st.budget.totalMB, 1024)) / 1024.0)
+                return "\(usedGB) / \(budgetGB) GB 统一内存 · 活跃请求 \(st.activeRequests)"
+            }
+            return "\(viewModel.hardwareRecommendation.ramGB) GB Apple Silicon"
+        case .models:
+            let available = viewModel.models.filter { $0.capability != "diarization" }
+            let loaded = available.filter { $0.state != "STOPPED" }.count
+            return "\(available.count) 个模型 · \(loaded) 个已载入"
+        case .playground:
+            return "本地实时流式测试"
+        case .jobs:
+            let running = viewModel.batches.filter { $0.status == .running || $0.status == .queued }.count
+            return running > 0 ? "\(running) 个进行中批量任务" : "事件流实时监听中"
+        case .voices:
+            return "\(viewModel.voices.count) 个参考音色"
+        }
+    }
+
+    private var sidebarBrandHeader: some View {
+        HStack(spacing: AcpmTheme.Spacing.s) {
+            Image(systemName: AcpmTheme.brandSymbol)
+                .font(.title3)
+                .foregroundStyle(AcpmTheme.brandGradient)
+            Text(AcpmTheme.productName)
+                .font(.headline)
+            Spacer()
+        }
+    }
+
+    private var sidebarConnectionFooter: some View {
+        VStack(alignment: .leading, spacing: 6) {
             if let status = viewModel.status {
-                Text("进行中请求: \(status.activeRequests) · 排队中请求: \(status.queuedRequests)")
-                    .font(.body.monospacedDigit())
+                HStack {
+                    Text("内存 \(status.used.totalMB) MB")
+                        .font(.caption2.monospacedDigit().weight(.medium))
+                        .contentTransition(.numericText())
+                    Spacer()
+                    Text(verbatim: "PID \(status.pid)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView(
+                    value: Double(min(status.used.totalMB, max(status.budget.totalMB, 1))),
+                    total: Double(max(status.budget.totalMB, 1))
+                )
+                .controlSize(.small)
+                .tint(AcpmTheme.pressureColor(status.memoryPressure))
             } else {
-                Text("暂无队列状态")
+                Text("本地服务离线")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
     }
 
-    private var voicesAndSettingsTab: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("音色库与系统设置")
-                .font(.title2.bold())
-            Text("Phase 2/3 将在此处接入参考音色库试听、内存预算档位（Eco/Balanced/Performance）、模型存储迁移与 SMAppService 开机自启配置。")
-                .foregroundStyle(.secondary)
+    private func attentionBadgeCount(for tab: ConsoleTab) -> Int? {
+        switch tab {
+        case .overview:
+            return viewModel.recentFailures.isEmpty ? nil : viewModel.recentFailures.count
+        case .jobs:
+            let batches = viewModel.batches.filter { $0.status == .running || $0.status == .queued || $0.status == .paused }.count
+            let dls = viewModel.downloads.values.filter { $0.status == .downloading || $0.status == .verifying || $0.status == .queued }.count
+            let sum = batches + dls
+            return sum > 0 ? sum : nil
+        case .models, .playground, .voices:
+            return nil
         }
     }
 
-    private func statCard(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.headline.monospaced())
+    private func attentionBadgeColor(for tab: ConsoleTab) -> Color {
+        switch tab {
+        case .overview: return .orange
+        case .jobs: return .purple
+        default: return .secondary
         }
-        .padding(12)
-        .background(Color.secondary.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

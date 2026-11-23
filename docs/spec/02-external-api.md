@@ -11,7 +11,7 @@
 `acpmd` 启动并绑定监听后，以 `0600` 权限通过「写临时文件 + 原子重命名」更新 `runtime.json`。客户端发现流程：
 1. 读取 `<AppData>/acpm-desktop/runtime.json`。
 2. 校验 `pid` 存活（macOS 可进一步检测 `native_ipc_path` 是否可连通；若 `pid` 失效则清理脏文件或拉起 `AcpmRuntime.app` / `acpmd`）。
-3. 优先通过 `native_ipc_path`（同签名应用免 Token 或带签发 Token），通用脚本/Agent 通过 `http_base_url` + `Authorization: Bearer <token>` 访问。
+3. 优先通过 `native_ipc_path`（同签名应用免 Token 或带签发 Token），本机或局域网跨设备调用方通过 `http_base_url` / `mdns_base_url`（默认 `http://acpm.local:18790`）+ `Authorization: Bearer <token>` 访问。
 
 ```json
 {
@@ -22,15 +22,21 @@
   "native_ipc_path": "/Users/alice/Library/Application Support/acpm-desktop/daemon.sock",
   "token": "acpm_local_9d8f2e1c4a6b...",
   "platform": "darwin-arm64",
-  "capabilities": ["llm", "asr", "tts", "vad", "diarization"]
+  "capabilities": ["llm", "asr", "tts", "vad", "diarization"],
+  "mdns_hostname": "acpm.local",
+  "mdns_base_url": "http://acpm.local:18790"
 }
 ```
 
-### 1.2 安全策略
+### 1.2 安全策略与 mDNS 固定域名广播
 
-- **Loopback HTTP (`127.0.0.1:<port>`)**：
+- **mDNS 局域网固定域名广播（跨设备接入）**：
+  - 默认开启 mDNS 广播（可通过 `--no-mdns` 关闭为纯本机 `127.0.0.1`），默认广播固定域名 **`acpm.local`**（可通过 `--mdns-host` 自定义）及 Bonjour 服务 **`_acpm._tcp.local.`**（TXT 记录包含 `version=1`、`host=acpm.local`、`port=18790`、`capabilities=llm,asr,tts`），监听网卡 IP 变化时自动刷新。
+  - 跨设备调用方固定通过 `http://acpm.local:18790/v1/...` 访问，不依赖变化的局域网 DHCP IP。
+  - 默认持久化 Bearer Token 至 `<AppData>/acpm-desktop/auth_token`（`0600` 权限，亦可通过 `--token` 显式指定），重启后无需在局域网设备重新配对。
+- **HTTP (`127.0.0.1:<port>` / `0.0.0.0:<port>`)**：
   - 除 `GET /healthz` 外，所有端点强制要求 `Authorization: Bearer <token>`。
-  - **Host 白名单校验**：仅允许 `127.0.0.1:<port>`、`localhost:<port>`、`[::1]:<port>`，防 DNS Rebinding 攻击。
+  - **Host 白名单校验**：允许 `127.0.0.1:<port>`、`localhost:<port>`、`[::1]:<port>`、已配置的 mDNS 固定域名（如 `acpm.local:<port>`）及当前活跃 LAN IPv4，拦截任意未知域名，防 DNS Rebinding 攻击。
   - **Origin 防护**：若请求携带非空 `Origin` 头（典型网页浏览器 CSRF 探测），直接返回 `403 FORBIDDEN`。
 - **Native IPC（macOS UDS / Windows Named Pipe）**：
   - macOS 通过 `LOCAL_PEERTOKEN` 验证调用进程 Team ID 与宿主一致或位于控制台授权白名单内；Windows 通过当前用户 SID DACL 与 Authenticode 校验。
